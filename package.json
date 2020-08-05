@@ -2,13 +2,20 @@
   "name": "bfx-api-helper",
   "version": "1.0.0",
   "description": "Lightweight wrapper for the Bitfinex API",
+  "homepage": "https://github.com/garreth-sutton/bfx-api-helper",
+  "keywords": [
+    "bitfinex",
+    "bfx",
+    "crypto",
+    "api"
+  ],
   "main": "ApiHelper.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Garreth Sutton <garreth.sutton@bitfinex.com>",
   "license": "ISC",
-  "devDependencies": {
+  "dependencies": {
     "crypto-js": "^3.1.9-1",
     "request": "^2.88.0",
     "proxymise": "^1.0.2",
