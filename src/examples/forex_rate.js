@@ -1,4 +1,4 @@
-const ApiHelper = require("../ApiHelper")
+const ApiHelper = require("bfx-api-helper")
 
 const requestBody = { ccy1: "BTC", ccy2: "USD" }
 new ApiHelper()

@@ -1,4 +1,4 @@
-const ApiHelper = require("../ApiHelper")
+const ApiHelper = require("bfx-api-helper")
 
 const updateOrderPayload = [0, "ou", null, { "amount": "10", "id": 48513532021 }]
 

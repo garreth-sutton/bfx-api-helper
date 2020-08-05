@@ -1,4 +1,4 @@
-const ApiHelper = require("../ApiHelper")
+const ApiHelper = require("bfx-api-helper")
 
 const orderStatusRequestBody = {
     order_id: 48513532021

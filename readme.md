@@ -1,6 +1,14 @@
 # ApiHelper
 ### A lightweight Node.js wrapper for the Bitfinex API
 ### View the [Bitfinex API documentation](https://docs.bitfinex.com/reference)
+# Installation & import
+Install using NPM:
+
+`npm i bfx-api-helper`
+
+Then import bfx-api-node inside your script:
+
+`const ApiHelper = require("bfx-api-helper")`
 # Overview
 ### The purpose of ApiHelper is to abstract the complexity of interfacing with the Bitfinex API, particularly with API calls that require authentication with a key & secret.
 ### ApiHelper will determine what version of the REST API you would like to use, and generate the correct authentication headers for that version.

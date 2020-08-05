@@ -1,4 +1,4 @@
-const ApiHelper = require("../ApiHelper")
+const ApiHelper = require("bfx-api-helper")
 
 new ApiHelper()
     .setContext("v1/balances")
