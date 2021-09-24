@@ -296,11 +296,18 @@ class ApiHelper {
       };
     } else {
       this.body.nonce = this.nonce;
-      return {
+      const payload = {
         url: url,
         headers: this.getHeaderV1(),
         body: JSON.stringify(this.body),
       };
+
+      // if using token, switch to json payload
+      if (this.token) {
+        payload.body = this.body;
+        payload.json = true;
+      }
+      return payload;
     }
   }
 
