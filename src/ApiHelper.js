@@ -402,7 +402,8 @@ class ApiHelper {
 
     executeRequest(requestPayload, (error, response, body) => {
       this.error = error;
-      this.response = this.version === 1 ? JSON.parse(body) : body;
+      this.response =
+        this.version === 1 && !this.token ? JSON.parse(body) : body;
 
       if (this.isVerbose)
         console.log(
