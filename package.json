@@ -1,6 +1,6 @@
 {
   "name": "bfx-api-helper",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "description": "Lightweight wrapper for the Bitfinex API",
   "homepage": "https://github.com/garreth-sutton/bfx-api-helper",
   "repository": {
