@@ -264,12 +264,18 @@ class ApiHelper {
 
   // Private V1 request composition functions
   getHeaderV1() {
-    let payload = Buffer.from(JSON.stringify(this.body)).toString("base64");
-    return {
-      "X-BFX-APIKEY": this.key,
-      "X-BFX-PAYLOAD": payload,
-      "X-BFX-SIGNATURE": this.getSignatureV1(payload),
-    };
+    if (this.token) {
+      return {
+        "bfx-token": this.token,
+      };
+    } else {
+      let payload = Buffer.from(JSON.stringify(this.body)).toString("base64");
+      return {
+        "X-BFX-APIKEY": this.key,
+        "X-BFX-PAYLOAD": payload,
+        "X-BFX-SIGNATURE": this.getSignatureV1(payload),
+      };
+    }
   }
 
   getSignatureV1(payload) {
