@@ -1,4 +1,5 @@
 const CryptoJS = require("crypto-js"); // Cryptography methods for signing transactions with the users credentials
+const performance = require("node:perf_hooks").performance; // lib for conveniently getting timestamps to measure performance
 const request = require("request"); // Perform network requests
 const fs = require("fs"); // Read from the file system (User credentials & options)
 const proxymise = require("proxymise"); // Provides the fluent promises interface
@@ -51,6 +52,9 @@ class ApiHelper {
       verboseOutput: false, // Print Raw request and response (Useful for debugging)
       dms: false, // Dead-mam switch, aka cancel all active orders when connection is lost (WebSocket only)
       token: null, // Optional auth token (can be used instead of api key & secret)
+      filter: null, // Optional, an array of ws message stream filters, see: https://docs.bitfinex.com/docs/ws-auth#channel-filters (WebSocket only)
+      performance: false, // appends a timestamp to the response (REST only), for measuring performance
+      version: 0, // Optional, force API version, normally this is inferred from the API path
     };
 
     try {
@@ -76,7 +80,7 @@ class ApiHelper {
           "Path is not set, unable to use the API without specifying an API path."
         );
       if (!body) body = {};
-      options = { ...this.options, ...options };
+      this.options = { ...this.options, ...options };
       this.setVerbose(options.verboseOutput);
       this.setBaseUrl(options.baseRestUrl);
       this.setPath(path);
@@ -94,7 +98,7 @@ class ApiHelper {
    * @param {number} nonce - Override the auto-generated nonce used for this request
    */
   openSocket(options = this.options, delayResponse = 0, nonce = null) {
-    options = { ...this.options, ...options };
+    this.options = { ...this.options, ...options };
     this.setCredentials(options.key, options.secret);
     this.setNonce(nonce);
     return new Promise((resolve, reject) => {
@@ -103,18 +107,21 @@ class ApiHelper {
           "Unable to create WebSocket connection; credentials were not supplied."
         );
 
-      let socket = new WebSocket(options.baseWsUrl);
+      let socket = new WebSocket(this.options.baseWsUrl);
 
       const authenticationPayload = this.getWebSocketSignature();
-      if (options.dms) authenticationPayload.dms = 4; // 4 = DMS enabled
 
       socket.onopen = () => {
+        if (this.options.verboseOutput)
+          console.log(JSON.stringify(authenticationPayload, null, 2));
         socket.send(JSON.stringify(authenticationPayload));
       };
 
       socket.onmessage = (msg) => {
         let response = JSON.parse(msg.data);
         if (response.event == "auth") {
+          if (this.options.verboseOutput)
+            console.log(JSON.stringify(response, null, 2));
           socket.onmessage = undefined;
           if (response.status == "OK") {
             setTimeout(() => {
@@ -228,19 +235,21 @@ class ApiHelper {
   }
 
   setNonce(nonce) {
-    this.nonce = nonce ? nonce : Date.now().toString();
+    this.nonce = nonce ? nonce : (Date.now() * 1000).toString();
   }
 
   setPath(path) {
     if (path.startsWith("/")) {
       path = path.substring(1);
     }
-    if (path.startsWith("v1/")) {
-      this.version = 1;
-    } else if (path.startsWith("v2/")) {
-      this.version = 2;
-    } else {
-      throw "Unable to determine endpoint version. Paths are expected to start with v1, v2, v3.. Aborting.";
+    if (![1, 2].includes(this.options.version)) {
+      if (path.startsWith("v1/")) {
+        this.version = 1;
+      } else if (path.startsWith("v2/")) {
+        this.version = 2;
+      } else {
+        throw "Unable to determine endpoint version. Paths are expected to start with v1, v2, v3.. Aborting.";
+      }
     }
 
     this.path = path;
@@ -284,7 +293,7 @@ class ApiHelper {
 
   getRequestPayloadV1(authenticatedRequest) {
     this.body.request = this.path.startsWith("/") ? this.path : `/${this.path}`;
-    let url = `${this.getRootUrl()}${this.path}`;
+    let url = `${this.getRootUrl()}${this.body.request}`;
     if (this.pathArgs) {
       this.body.request += `?${this.pathArgs}`;
       url += `?${this.pathArgs}`;
@@ -334,7 +343,8 @@ class ApiHelper {
   }
 
   getRequestPayloadV2(authenticatedRequest) {
-    let url = `${this.getRootUrl()}${this.path}`;
+    const path = this.path.startsWith("/") ? this.path : `/${this.path}`;
+    let url = `${this.getRootUrl()}${path}`;
     if (this.pathArgs) url += `?${this.pathArgs}`;
     if (!authenticatedRequest) {
       return {
@@ -354,19 +364,25 @@ class ApiHelper {
 
   // Private WS init payload composition functions
   getWebSocketSignature() {
-    const authPayload = "AUTH" + this.nonce;
-    const authSig = CryptoJS.HmacSHA384(
-      "AUTH" + this.nonce,
-      this.secret
-    ).toString(CryptoJS.enc.Hex);
+    const payload = { event: "auth" };
+    if (this.options.token) {
+      payload.token = this.options.token;
+    } else {
+      const authPayload = "AUTH" + this.nonce;
+      const authSig = CryptoJS.HmacSHA384(
+        "AUTH" + this.nonce,
+        this.secret
+      ).toString(CryptoJS.enc.Hex);
+      payload.apiKey = this.key;
+      payload.authSig = authSig;
+      payload.authNonce = this.nonce;
+      payload.authPayload = authPayload;
+    }
 
-    return {
-      apiKey: this.key,
-      authSig,
-      authNonce: this.nonce,
-      authPayload,
-      event: "auth",
-    };
+    if (this.options.dms) payload.dms = 4; // 4 = DMS enabled
+    if (this.options.filter && Array.isArray(this.options.filter))
+      payload.filter = this.options.filter;
+    return payload;
   }
 
   // Private REST transmission function
@@ -400,16 +416,16 @@ class ApiHelper {
     this.error = null;
     this.response = null;
 
+    this.startTime = performance.now();
     executeRequest(requestPayload, (error, response, body) => {
+      this.endTime = performance.now();
       this.error = error;
       this.response =
         this.version === 1 && !this.token ? JSON.parse(body) : body;
 
       if (this.isVerbose)
         console.log(
-          `Verbose - Response Body: ${
-            this.version === 1 ? body : JSON.stringify(body)
-          }`
+          `Verbose - Response Body: ${JSON.stringify(this.response)}`
         );
       callback();
     });
