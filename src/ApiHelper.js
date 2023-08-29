@@ -55,6 +55,7 @@ class ApiHelper {
       filter: null, // Optional, an array of ws message stream filters, see: https://docs.bitfinex.com/docs/ws-auth#channel-filters (WebSocket only)
       performance: false, // appends a timestamp to the response (REST only), for measuring performance
       version: 0, // Optional, force API version, normally this is inferred from the API path
+      optionalHeaders: {}, // Optional request headers
     };
 
     try {
@@ -81,11 +82,15 @@ class ApiHelper {
         );
       if (!body) body = {};
       this.options = { ...this.options, ...options };
-      this.setVerbose(options.verboseOutput);
-      this.setBaseUrl(options.baseRestUrl);
+      this.setVerbose(this.options.verboseOutput);
+      this.setBaseUrl(this.options.baseRestUrl);
       this.setPath(path);
       this.setBody(body);
-      this.setCredentials(options.key, options.secret, options.token);
+      this.setCredentials(
+        this.options.key,
+        this.options.secret,
+        this.options.token
+      );
 
       return resolve(this);
     });
@@ -273,18 +278,17 @@ class ApiHelper {
 
   // Private V1 request composition functions
   getHeaderV1() {
+    const headers = {};
+
     if (this.token) {
-      return {
-        "bfx-token": this.token,
-      };
+      headers["bfx-token"] = this.token;
     } else {
       let payload = Buffer.from(JSON.stringify(this.body)).toString("base64");
-      return {
-        "X-BFX-APIKEY": this.key,
-        "X-BFX-PAYLOAD": payload,
-        "X-BFX-SIGNATURE": this.getSignatureV1(payload),
-      };
+      headers["X-BFX-APIKEY"] = this.key;
+      headers["X-BFX-PAYLOAD"] = payload;
+      headers["X-BFX-SIGNATURE"] = this.getSignatureV1(payload);
     }
+    return this.mergeOptionalHeaders(headers);
   }
 
   getSignatureV1(payload) {
@@ -302,6 +306,7 @@ class ApiHelper {
       return {
         url: url,
         body: JSON.stringify(this.body),
+        headers: this.mergeOptionalHeaders({}),
       };
     } else {
       this.body.nonce = this.nonce;
@@ -322,17 +327,20 @@ class ApiHelper {
 
   // Private V2 request composition functions
   getHeaderV2() {
+    const headers = {};
     if (this.token) {
-      return {
-        "bfx-token": this.token,
-      };
+      headers["bfx-token"] = this.token;
     } else {
-      return {
-        "bfx-nonce": this.nonce,
-        "bfx-apikey": this.key,
-        "bfx-signature": this.getSignatureV2(),
-      };
+      headers["bfx-nonce"] = this.nonce;
+      headers["bfx-apikey"] = this.key;
+      headers["bfx-signature"] = this.getSignatureV2();
     }
+
+    return this.mergeOptionalHeaders(headers);
+  }
+
+  mergeOptionalHeaders(headers) {
+    return { ...this.options?.optionalHeaders, ...headers };
   }
 
   getSignatureV2() {
@@ -350,6 +358,7 @@ class ApiHelper {
       return {
         url: url,
         body: this.body,
+        headers: this.mergeOptionalHeaders({}),
         json: true,
       };
     } else {

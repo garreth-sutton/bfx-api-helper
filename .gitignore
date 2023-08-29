@@ -1,2 +1,4 @@
 node_modules/*
 src/examples-internal
+credentials.json
+defaults.json

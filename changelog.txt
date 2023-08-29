@@ -1,0 +1,8 @@
+1.0.16
+   Fixed reference error calling mergeOptionalHeaders when constructing v2 headers
+1.0.15
+   Added optional headers (REST V1/V2)
+      Options object has a new optionalHeaders key that accepts an object of optional header key/value pairs.
+      Values supplied here will be appended to the request header.
+<= 1.0.14
+   Changes not recorded.
